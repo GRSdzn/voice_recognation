@@ -36,14 +36,14 @@ async def websocket_endpoint(websocket: WebSocket):
     try:
         while True:
             data = await websocket.receive_bytes()
-            transcription = transcriber(data).get('text')  # Обработка бинарных данных
+            transcription = transcriber(data).get('text')  # Обработка поступающих бинарных данных
 
             response = TranscriptionResponse(transcription=transcription)
             await websocket.send_json(response.dict())
-            await asyncio.sleep(5)
 
     except WebSocketDisconnect:
         connected_websockets.remove(websocket)
+
 
 
 @app.get("/")

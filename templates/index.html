@@ -43,9 +43,10 @@
 
                     mediaRecorder.ondataavailable = (e) => {
                         if (e.data.size > 0) {
-                            audioChunks.push(e.data);
+                            socket.send(e.data); // Отправлять данные сразу, как только они доступны
                         }
                     };
+
 
                     mediaRecorder.start();
                     document.getElementById('startButton').style.display = 'none';
@@ -59,17 +60,16 @@
         }
 
         function stopRecording() {
-            if (mediaRecorder && stream) {
-                mediaRecorder.onstop = function() {
-                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-                    socket.send(audioBlob);
-                    audioChunks = [];
-                };
-
-                mediaRecorder.stop();
-                stream.getAudioTracks()[0].stop();
+        if (mediaRecorder && stream) {
+            mediaRecorder.stop();
+            stream.getAudioTracks()[0].stop();
+            document.getElementById('startButton').style.display = 'inline';
+            document.getElementById('stopButton').style.display = 'none';
+            document.getElementById('recordingIndicator').style.display = 'none';
+            document.getElementById('stopButton').disabled = true;
             }
         }
+
 
         socket.onmessage = function(event) {
             const data = JSON.parse(event.data);
