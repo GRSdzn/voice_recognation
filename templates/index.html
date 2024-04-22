@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Аудио Транскрипция</title>
+</head>
+<body>
+    <main style="display: flex; flex-direction: column; align-items: center; height: 100vh; justify-content: center">
+        <div style="width: 600px; height: 500px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px">
+            <div style="display: flex">
+                <button id="startButton" onclick="startRecording()">Старт</button>
+                <button id="stopButton" onclick="stopRecording()" style="display: none" disabled>Стоп</button>
+            </div>
+            <div>
+                <div id="transcriptionResult"></div>
+                <p id="recordingIndicator" style="display: none">Записываем...</p>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let stream;
+        let mediaRecorder;
+        let audioChunks = [];
+        const socket = new WebSocket('ws://127.0.0.1:8080/ws');
+
+        socket.onopen = function(event) {
+            console.log('WebSocket connection established.');
+        };
+
+        socket.onerror = function(error) {
+            console.error('WebSocket error: ' + error);
+        };
+
+        function startRecording() {
+            audioChunks = [];
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then((streamData) => {
+                    stream = streamData;
+                    mediaRecorder = new MediaRecorder(stream);
+
+                    mediaRecorder.ondataavailable = (e) => {
+                        if (e.data.size > 0) {
+                            audioChunks.push(e.data);
+                        }
+                    };
+
+                    mediaRecorder.start();
+                    document.getElementById('startButton').style.display = 'none';
+                    document.getElementById('stopButton').style.display = 'inline';
+                    document.getElementById('recordingIndicator').style.display = 'inline';
+                    document.getElementById('stopButton').disabled = false;
+                })
+                .catch((error) => {
+                    console.error('Error accessing microphone:', error);
+                });
+        }
+
+        function stopRecording() {
+            if (mediaRecorder && stream) {
+                mediaRecorder.onstop = function() {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    socket.send(audioBlob);
+                    audioChunks = [];
+                };
+
+                mediaRecorder.stop();
+                stream.getAudioTracks()[0].stop();
+            }
+        }
+
+        socket.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            document.getElementById('transcriptionResult').innerText = data.transcription;
+        };
+    </script>
+</body>
+</html>
